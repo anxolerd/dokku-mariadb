@@ -38,4 +38,32 @@ EOL
   chmod 0440 "$_SUDOERS_FILE"
 }
 
+plugin-services-auth-migrate() {
+  local SERVICES=$(ls "$PLUGIN_DATA_ROOT" 2> /dev/null)
+  if [[ -z "$SERVICES" ]]; then
+    echo "There are no $PLUGIN_SERVICE services, no need to migrate"
+  else
+    for SERVICE in $SERVICES; do
+      local NEW_SERVICE_AUTH_DIR="$PLUGIN_DATA_ROOT/$SERVICE/auth"
+      local OLD_SERVICE_AUTH_DIR="$PLUGIN_DATA_ROOT/$SERVICE"
+      if [[ -d "$NEW_SERVICE_AUTH_DIR" ]]; then
+        # if new auth dir exists, assume the service is already migrated
+        # to new auth scheme
+        echo "$SERVICE is already migrated to new auth scheme"
+        continue
+      fi
+
+      # Create auth dir if not exists
+      mkdir -p "$NEW_SERVICE_AUTH_DIR"
+
+      # Put existing service users to new auth dir
+      # TODO: replace ln with mv as soon as plugin code supports new auth
+      ln "$OLD_SERVICE_AUTH_DIR/ROOTPASSWORD" "$NEW_SERVICE_AUTH_DIR/root"
+      ln "$OLD_SERVICE_AUTH_DIR/PASSWORD" "$NEW_SERVICE_AUTH_DIR/mariadb"
+      echo "$SERVICE has been migrated to new auth scheme"
+    done
+  fi
+}
+
 plugin-install "$@"
+plugin-services-auth-migrate
